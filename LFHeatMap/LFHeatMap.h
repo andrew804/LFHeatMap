@@ -74,7 +74,8 @@
                       points:(NSArray *)points 
                      weights:(NSArray *)weights 
     weightsAdjustmentEnabled:(BOOL)weightsAdjustmentEnabled
-             groupingEnabled:(BOOL)groupingEnabled;
+             groupingEnabled:(BOOL)groupingEnabled
+                       color:(UIColor *)color;
 
 
 @end

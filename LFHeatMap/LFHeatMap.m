@@ -170,7 +170,8 @@ inline static int isqrt(int x)
                                points:points
                               weights:weights
              weightsAdjustmentEnabled:NO
-                      groupingEnabled:YES];
+                      groupingEnabled:YES
+                                color:[UIColor redColor]];
 }
 
 + (UIImage *)heatMapWithRect:(CGRect)rect
@@ -179,6 +180,7 @@ inline static int isqrt(int x)
                      weights:(NSArray *)weights
     weightsAdjustmentEnabled:(BOOL)weightsAdjustmentEnabled
              groupingEnabled:(BOOL)groupingEnabled
+                       color:(UIColor *)color
 {
 	
     // Adjustment variables for weights adjustment
@@ -408,20 +410,53 @@ inline static int isqrt(int x)
                 // Normalize density to 0..1
                 floatDensity = (float)density[i] / (float)maxDensity;
                 
-                // Red and alpha component
-                rgba[indexOrigin] = floatDensity * 255;
-                rgba[indexOrigin+3] = rgba[indexOrigin];
+                CGFloat heatMapColorR, heatMapColorG, heatMapColorB, alpha;
+                [color getRed: &heatMapColorR green: &heatMapColorG blue: &heatMapColorB alpha: &alpha];
+                heatMapColorR = heatMapColorR * 255;
+                heatMapColorG = heatMapColorG * 255;
+                heatMapColorB = heatMapColorB * 255;
                 
-                 // Green component
-                if (floatDensity >= 0.75)
-                    rgba[indexOrigin+1] = rgba[indexOrigin];
-                else if (floatDensity >= 0.5)
-                    rgba[indexOrigin+1] = (floatDensity - 0.5) * 255 * 3;
-               
+                // alpha
+                rgba[indexOrigin + 3] = 0.8 * 255;
                 
-                // Blue component
-                if (floatDensity >= 0.8)
-                    rgba[indexOrigin+2] = (floatDensity - 0.8) * 255 * 5;
+                if (floatDensity > 0.8) {
+                    const CGFloat* shiftedColorComponents = [self shiftHue:0.2 red:heatMapColorR green:heatMapColorG blue:heatMapColorB];
+                    int whiteToColorGradR = 255 + floatDensity * (shiftedColorComponents[0] - 255);
+                    int whiteToColorGradG = 255 + floatDensity * (shiftedColorComponents[1] - 255);
+                    int whiteToColorGradB = 255 + floatDensity * (shiftedColorComponents[2] - 255);
+                    rgba[indexOrigin] = whiteToColorGradR;
+                    rgba[indexOrigin + 1] = whiteToColorGradG;
+                    rgba[indexOrigin + 2] = whiteToColorGradB;
+                    
+                } else if (floatDensity > 0.4) {
+                    double densityBump = floatDensity + 0.55;
+                    if (densityBump > 1.32) densityBump = 1.32;                         // protects out of bounds colors
+                    int whiteToColorGradR = 255 + densityBump * (heatMapColorR - 255);
+                    int whiteToColorGradG = 255 + densityBump * (heatMapColorG - 255);
+                    int whiteToColorGradB = 255 + densityBump * (heatMapColorB - 255);
+                    rgba[indexOrigin] = whiteToColorGradR;
+                    rgba[indexOrigin + 1] = whiteToColorGradG;
+                    rgba[indexOrigin + 2] = whiteToColorGradB;
+                    
+                } else if (floatDensity > 0.2) {
+                    double densityBump = floatDensity + 0.95;
+                    double tintFactor = 0.6;
+                    int lightTintR = ((255 - heatMapColorR) * tintFactor) + heatMapColorR;
+                    int lightTintG = ((255 - heatMapColorG) * tintFactor) + heatMapColorG;
+                    int lightTintB = ((255 - heatMapColorB) * tintFactor) + heatMapColorB;
+                    int whiteToColorGradR = 255 + densityBump * (lightTintR - 255);
+                    int whiteToColorGradG = 255 + densityBump * (lightTintG - 255);
+                    int whiteToColorGradB = 255 + densityBump * (lightTintB - 255);
+                    rgba[indexOrigin] = whiteToColorGradR;
+                    rgba[indexOrigin + 1] = whiteToColorGradG;
+                    rgba[indexOrigin + 2] = whiteToColorGradB;
+                    
+                } else {                    
+                    rgba[indexOrigin] = 0;
+                    rgba[indexOrigin + 1] = 0;
+                    rgba[indexOrigin + 2] = 0;
+                    rgba[indexOrigin + 3] = 0;
+                }
             }
         }
     }
@@ -452,6 +487,19 @@ inline static int isqrt(int x)
     
     return image;
 }
+
++ (const CGFloat *)shiftHue:(CGFloat)amount red:(CGFloat)red green:(CGFloat)green blue:(CGFloat)blue {
+    
+    CGFloat hue;
+    CGFloat sat;
+    CGFloat bri;
+    [[UIColor colorWithRed:red green:green blue:blue alpha:1] getHue:&hue saturation:&sat brightness:&bri alpha:nil];
+    hue += amount;
+    if (hue < 0) hue += 1;
+    UIColor *tempColor = [UIColor colorWithHue:hue saturation:sat brightness:bri alpha:1];
+    return CGColorGetComponents(tempColor.CGColor);
+}
+
 
 @end
 
